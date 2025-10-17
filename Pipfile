@@ -16,6 +16,7 @@ dj-database-url = "*"
 sendgrid = "*"
 django-sendgrid-v5 = "*"
 python-dotenv = "*"
+gunicorn = "*"
 
 [dev-packages]
 
