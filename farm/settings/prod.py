@@ -5,7 +5,7 @@ import os
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(" ")
 
 CORS_ALLOWED_ORIGINS = [
-    "https://shop-lytics-frontend.onrender.com",
+    "https://farm-frontend-v2.onrender.com",
 ]
 
 DEFAULT_FROM_EMAIL = "beast41514@gmail.com"
