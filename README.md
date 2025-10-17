@@ -6,6 +6,11 @@ The system combines traditional data management with **LLM-powered voice input a
 
 ---
 
+## Test User
+
+- Email: owner@greenpastures.com
+- Pass: testpass123
+
 ## Architecture Diagram
 
 ![Architecture Diagram](architecture.png)
