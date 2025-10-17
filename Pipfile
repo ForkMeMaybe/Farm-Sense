@@ -1,0 +1,23 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = "*"
+djangorestframework = "*"
+django-cors-headers = "*"
+djoser = "*"
+djangorestframework-simplejwt = "*"
+psycopg2 = "*"
+google-generativeai = "*"
+openai = "*"
+dj-database-url = "*"
+sendgrid = "*"
+django-sendgrid-v5 = "*"
+python-dotenv = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.13"

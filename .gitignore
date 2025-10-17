@@ -1,0 +1,6 @@
+# frontend/
+FarmFrontendV2
+frontend
+farm/settings/dev.py
+.env
+temp
