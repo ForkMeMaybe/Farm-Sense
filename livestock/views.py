@@ -355,61 +355,61 @@ class AMUInsightsViewSet(viewsets.ViewSet):
                 - Active Ingredient: {drug_info.get("active_ingredient")}
                 - Species Target: {drug_info.get("species_target")}
                 - Recommended Dosage Min: {drug_info.get("recommended_dosage_min")} {drug_info.get("unit")}
-                - Recommended Dosage Max: {drug_info.get("recommended_dosage_max")} {drug_info.get("unit")}
                 """
 
         try:
-            # Configure Perplexity API
-            api_key = os.environ.get("SENDGRID_API_KEY")
-            url = "https://api.perplexity.ai/chat/completions"
+            api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+            # FIXED: Changed model to pinned version 'gemini-1.5-flash-001'
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
 
             headers = {
-                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             }
 
             data = {
-                "model": "sonar",
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are an expert veterinary assistant specializing in livestock health and antimicrobial usage (AMU) analysis. Provide detailed, professional insights about animal health, drug dosages, and treatment recommendations.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                "max_tokens": 1500,
-                "temperature": 0.7,
+                "contents": [{"parts": [{"text": prompt}]}],
+                "system_instruction": {
+                    "parts": [
+                        {
+                            "text": "You are an expert veterinary assistant specializing in livestock health and antimicrobial usage (AMU) analysis."
+                        }
+                    ]
+                },
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "maxOutputTokens": 1500,
+                },
             }
 
-            # Retry logic for better reliability
             max_retries = 3
+            insights = "No insights generated."
+
             for attempt in range(max_retries):
                 try:
                     response = requests.post(
-                        url, json=data, headers=headers, timeout=None
+                        url, json=data, headers=headers, timeout=30
                     )
 
                     if response.status_code == 200:
                         result = response.json()
-                        insights = result["choices"][0]["message"]["content"]
+                        try:
+                            insights = result["candidates"][0]["content"]["parts"][0][
+                                "text"
+                            ]
+                        except (KeyError, IndexError):
+                            insights = "AI generated an empty response."
                         break
                     else:
-                        if attempt == max_retries - 1:  # Last attempt
+                        if attempt == max_retries - 1:
                             insights = f"Error generating insights: {response.status_code} - {response.text}"
                         else:
-                            continue  # Retry
-
-                except requests.exceptions.Timeout:
-                    if attempt == max_retries - 1:  # Last attempt
-                        insights = "Error generating insights: Request timeout after multiple attempts. Please try again."
-                    else:
-                        continue  # Retry
+                            continue
 
                 except requests.exceptions.RequestException as e:
-                    if attempt == max_retries - 1:  # Last attempt
+                    if attempt == max_retries - 1:
                         insights = f"Error generating insights: {str(e)}"
                     else:
-                        continue  # Retry
+                        continue
 
         except Exception as e:
             insights = f"Error generating insights: {str(e)}"
@@ -419,7 +419,7 @@ class AMUInsightsViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"], url_path="parse-voice")
     def parse_voice_input(self, request):
         """
-        Parse voice transcript using Perplexity AI to extract form information
+        Parse voice transcript using Gemini AI to extract form information
         """
         transcript = request.data.get("transcript", "")
         form_type = request.data.get("form_type", "livestock")
@@ -430,58 +430,44 @@ class AMUInsightsViewSet(viewsets.ViewSet):
                 {"error": "Transcript is required"}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Get form-specific field definitions
         form_fields = self.get_form_fields(form_type)
 
-        # Create a detailed prompt for Perplexity AI
-        prompt = f"""
-You are an expert livestock management assistant. I need you to parse the following voice transcript and extract {form_type} information in a structured JSON format.
+        prompt = f"""You are an expert livestock management assistant. I need you to parse the following voice transcript and extract {form_type} information in a structured JSON format.
+            Voice Transcript: "{transcript}"
 
-Voice Transcript: "{transcript}"
+            The transcript language code is "{language}". If the transcript is not in English, first translate it to English accurately, then extract the fields.
 
-The transcript language code is "{language}". If the transcript is not in English, first translate it to English accurately (preserving domain terms), then extract the fields.
+            Please analyze this transcript and extract the following information:
+            {form_fields["description"]}
 
-Please analyze this transcript and extract the following information if mentioned:
-{form_fields["description"]}
+            Expected fields:
+            {form_fields["fields"]}
 
-Our {form_type} model has these fields:
-{form_fields["fields"]}
-
-Important:
-- Return ONLY a valid JSON object
-- Include only the fields listed above; do NOT add extra fields
-- If a field is not mentioned or unclear, omit it (or use null if optional)
-
-Example response format:
-{form_fields["example"]}
-
-Return only the JSON object, no additional text or explanation.
-"""
+            Important:
+            - Return ONLY a valid JSON object.
+            - Do NOT add markdown formatting like ```json.
+            
+            Example response format:
+            {form_fields["example"]}
+            """
 
         try:
-            # Configure Perplexity API
-            api_key = os.environ.get("SENDGRID_API_KEY")
-            url = "https://api.perplexity.ai/chat/completions"
+            api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
 
             headers = {
-                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             }
 
             data = {
-                "model": "sonar",
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are an expert livestock management assistant. Parse voice transcripts and extract livestock information into structured JSON format. Return only valid JSON, no additional text.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                "max_tokens": 1000,
-                "temperature": 0.3,
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {
+                    "temperature": 0.1,
+                    "maxOutputTokens": 1000,
+                    "responseMimeType": "application/json",
+                },
             }
 
-            # Retry logic for better reliability
             max_retries = 3
             parsed_data = None
 
@@ -493,16 +479,26 @@ Return only the JSON object, no additional text or explanation.
 
                     if response.status_code == 200:
                         result = response.json()
-                        ai_response = result["choices"][0]["message"]["content"].strip()
+                        try:
+                            ai_response = result["candidates"][0]["content"]["parts"][
+                                0
+                            ]["text"].strip()
+                        except (KeyError, IndexError):
+                            parsed_data = {"error": "AI returned empty response"}
+                            break
 
                         # Try to parse the JSON response
                         try:
                             import json
 
+                            if ai_response.startswith("```json"):
+                                ai_response = ai_response.replace(
+                                    "```json", ""
+                                ).replace("```", "")
+
                             parsed_data = json.loads(ai_response)
                             break
                         except json.JSONDecodeError:
-                            # If JSON parsing fails, try to extract JSON from the response
                             import re
 
                             json_match = re.search(r"\{.*\}", ai_response, re.DOTALL)
@@ -514,27 +510,18 @@ Return only the JSON object, no additional text or explanation.
                                     parsed_data = {
                                         "error": "Could not parse AI response as JSON"
                                     }
-                                else:
-                                    continue
+                                continue
                     else:
                         if attempt == max_retries - 1:
                             parsed_data = {
-                                "error": f"API error: {response.status_code}"
+                                "error": f"API error: {response.status_code} - {response.text}"
                             }
-                        else:
-                            continue
-
-                except requests.exceptions.Timeout:
-                    if attempt == max_retries - 1:
-                        parsed_data = {"error": "Request timeout"}
-                    else:
                         continue
 
                 except requests.exceptions.RequestException as e:
                     if attempt == max_retries - 1:
                         parsed_data = {"error": f"Request error: {str(e)}"}
-                    else:
-                        continue
+                    continue
 
             if parsed_data is None:
                 parsed_data = {"error": "Failed to parse voice input"}
@@ -566,17 +553,7 @@ Return only the JSON object, no additional text or explanation.
 - current_weight_kg: Decimal (optional) - Weight in kg
 - date_of_birth: Date (required) - Birth date
                 """,
-                "example": """
-{
-  "tag_id": "COW-001",
-  "species": "cow",
-  "breed": "Holstein",
-  "gender": "F",
-  "health_status": "healthy",
-  "current_weight_kg": 500,
-  "date_of_birth": "2023-01-15"
-}
-                """,
+                "example": '{\n  "tag_id": "COW-001",\n  "species": "cow",\n  "breed": "Holstein",\n  "gender": "F",\n  "health_status": "healthy",\n  "current_weight_kg": 500,\n  "date_of_birth": "2023-01-15"\n}',
             },
             "health": {
                 "description": """
@@ -595,16 +572,7 @@ Return only the JSON object, no additional text or explanation.
 - diagnosis: String (optional) - Medical diagnosis
 - treatment_outcome: String (optional) - Treatment outcome
                 """,
-                "example": """
-{
-  "livestock": "COW-001",
-  "event_type": "vaccination",
-  "event_date": "2024-01-15",
-  "notes": "Routine vaccination",
-  "diagnosis": "Preventive care",
-  "treatment_outcome": "completed"
-}
-                """,
+                "example": '{\n  "livestock": "COW-001",\n  "event_type": "vaccination",\n  "event_date": "2024-01-15",\n  "notes": "Routine vaccination",\n  "diagnosis": "Preventive care",\n  "treatment_outcome": "completed"\n}',
             },
             "feed_record": {
                 "description": """
@@ -623,20 +591,11 @@ Return only the JSON object, no additional text or explanation.
 - price_per_kg: Decimal (required) - Price per kg
 - date: Date (required) - Feeding date
                 """,
-                "example": """
-{
-  "livestock": "COW-001",
-  "feed_type": "hay",
-  "feed": "Alfalfa hay",
-  "quantity_kg": 10.0,
-  "price_per_kg": 50.0,
-  "date": "2024-01-15"
-}
-                """,
+                "example": '{\n  "livestock": "COW-001",\n  "feed_type": "hay",\n  "feed": "Alfalfa hay",\n  "quantity_kg": 10.0,\n  "price_per_kg": 50.0,\n  "date": "2024-01-15"\n}',
             },
             "yield_record": {
                 "description": """
-- livestock: Livestock ID or tag (e.g., COW-007)
+- livestock: Livestock ID or tag (e.g., COW-123)
 - yield_type: Type of yield (milk, eggs, wool, meat, etc.)
 - quantity: Yield quantity (numeric)
 - unit: Unit of measure (e.g., liters, kg, pieces)
@@ -653,17 +612,7 @@ Return only the JSON object, no additional text or explanation.
 - date: Date (required) - Yield date in YYYY-MM-DD
 - notes: String (optional) - Additional notes
                 """,
-                "example": """
-{
-  "livestock": "COW-007",
-  "yield_type": "milk",
-  "quantity": 15,
-  "unit": "liters",
-  "quality_grade": "A",
-  "date": "2023-09-26",
-  "notes": "Morning milking"
-}
-                """,
+                "example": '{\n  "livestock": "COW-123",\n  "yield_type": "milk",\n  "quantity": 15,\n  "unit": "liters",\n  "quality_grade": "A",\n  "date": "2023-09-26",\n  "notes": "Morning milking"\n}',
             },
             "drug": {
                 "description": """
@@ -678,14 +627,7 @@ Return only the JSON object, no additional text or explanation.
 - unit: String (optional) - Measurement unit
 - notes: String (optional) - Notes or manufacturer details
                 """,
-                "example": """
-{
-  "name": "Penicillin",
-  "active_ingredient": "Penicillin",
-  "unit": "ml",
-  "notes": "Manufactured by ABC Pharma"
-}
-                """,
+                "example": '{\n  "name": "Penicillin",\n  "active_ingredient": "Penicillin",\n  "unit": "ml",\n  "notes": "Manufactured by ABC Pharma"\n}',
             },
             "feed": {
                 "description": """
@@ -698,13 +640,7 @@ Return only the JSON object, no additional text or explanation.
 - cost_per_kg: Decimal (required) - Price per kg
 - notes: String (optional) - Additional notes or remarks
                 """,
-                "example": """
-{
-  "name": "Sunflower seeds",
-  "cost_per_kg": 500.0,
-  "notes": "Do not buy them; they are expensive."
-}
-                """,
+                "example": '{\n  "name": "Sunflower seeds",\n  "cost_per_kg": 500.0,\n  "notes": "Do not buy them; they are expensive."\n}',
             },
         }
 

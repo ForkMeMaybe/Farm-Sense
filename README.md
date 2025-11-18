@@ -18,7 +18,7 @@ The system combines traditional data management with **LLM-powered voice input a
 ## 🌟 Key Features
 
 - 🧠 **AI-Powered Insights:**  
-  Uses the **Perplexity API (LLM)** to analyze AMU data, detect improper drug usage, and recommend corrective actions.
+  Uses the **Gemini API (LLM)** to analyze AMU data, detect improper drug usage, and recommend corrective actions.
 
 - 🎙️ **Voice-Based Data Entry:**  
   Accepts **natural-language voice input** and converts it into structured JSON records using LLM processing.
@@ -40,7 +40,7 @@ The system combines traditional data management with **LLM-powered voice input a
 | :--------------------- | :-------------------------------------------------- |
 | **Frontend**           | HTML, CSS, JavaScript                               |
 | **Backend**            | Django REST Framework, PostgreSQL                   |
-| **AI Integration**     | Perplexity API (LLM)                                |
+| **AI Integration**     | Gemini API (LLM)                                    |
 | **Data Visualization** | Chart.js                                            |
 | **Others**             | Celery, Redis (for async tasks), JWT Authentication |
 
@@ -61,7 +61,7 @@ The system combines traditional data management with **LLM-powered voice input a
 **FarmSense** follows a modular architecture:
 
 - **Frontend** communicates with **Django REST API** via secured endpoints.
-- **Voice Transcription Module** captures audio input, transcribes it, and sends it to the **Perplexity LLM**.
+- **Voice Transcription Module** captures audio input, transcribes it, and sends it to the **Gemini LLM**.
 - **AI Engine** returns structured JSON, which the backend saves into the database.
 - **Insights Engine** generates visual and textual analytics (charts + AI insights).
 
