@@ -130,6 +130,9 @@ AUTH_USER_MODEL = "core.User"
 
 DJOSER = {
     "USER_ID_FIELD": "email",
+        "DOMAIN": "farm-sense-pc7z.onrender.com", 
+    "SITE_NAME": "FarmSense",     
+     "PROTOCOL": "https",   
      "PASSWORD_RESET_CONFIRM_URL": "password-reset/{uid}/{token}",
     "SERIALIZERS": {
         "user": "core.serializers.UserSerializer",
