@@ -8,7 +8,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://farm-frontend-v2.onrender.com",
 ]
 
-DEFAULT_FROM_EMAIL = "beast41514@gmail.com"
+DEFAULT_FROM_EMAIL = "tumpillipavan@gmail.com"
 
 DATABASES = {"default": dj_database_url.config()}
 
