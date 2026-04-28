@@ -358,27 +358,37 @@ class AMUInsightsViewSet(viewsets.ViewSet):
                 """
 
         try:
-            api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-            # FIXED: Changed model to pinned version 'gemini-1.5-flash-001'
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+            api_key = os.environ.get("GROQ_API_KEY", "").strip()
+            model = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile").strip()
+            url = "https://api.groq.com/openai/v1/chat/completions"
+
+            if not api_key:
+                return Response(
+                    {
+                        "insights": "Error generating insights: GROQ_API_KEY is not set.",
+                    },
+                    status=status.HTTP_200_OK,
+                )
 
             headers = {
                 "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
             }
 
             data = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "system_instruction": {
-                    "parts": [
-                        {
-                            "text": "You are an expert veterinary assistant specializing in livestock health and antimicrobial usage (AMU) analysis."
-                        }
-                    ]
-                },
-                "generationConfig": {
-                    "temperature": 0.7,
-                    "maxOutputTokens": 1500,
-                },
+                "model": model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are an expert veterinary assistant specializing in livestock health and antimicrobial usage (AMU) analysis.",
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    },
+                ],
+                "temperature": 0.7,
+                "max_tokens": 1500,
             }
 
             max_retries = 3
@@ -393,9 +403,7 @@ class AMUInsightsViewSet(viewsets.ViewSet):
                     if response.status_code == 200:
                         result = response.json()
                         try:
-                            insights = result["candidates"][0]["content"]["parts"][0][
-                                "text"
-                            ]
+                            insights = result["choices"][0]["message"]["content"]
                         except (KeyError, IndexError):
                             insights = "AI generated an empty response."
                         break
@@ -419,7 +427,7 @@ class AMUInsightsViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["post"], url_path="parse-voice")
     def parse_voice_input(self, request):
         """
-        Parse voice transcript using Gemini AI to extract form information
+        Parse voice transcript using Groq AI to extract form information
         """
         transcript = request.data.get("transcript", "")
         form_type = request.data.get("form_type", "livestock")
@@ -452,20 +460,36 @@ class AMUInsightsViewSet(viewsets.ViewSet):
             """
 
         try:
-            api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+            api_key = os.environ.get("GROQ_API_KEY", "").strip()
+            model = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile").strip()
+            url = "https://api.groq.com/openai/v1/chat/completions"
+
+            if not api_key:
+                return Response(
+                    {"error": "GROQ_API_KEY is not set."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             headers = {
                 "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
             }
 
             data = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {
-                    "temperature": 0.1,
-                    "maxOutputTokens": 1000,
-                    "responseMimeType": "application/json",
-                },
+                "model": model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You extract structured fields from livestock management transcripts and always return valid JSON.",
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    },
+                ],
+                "temperature": 0.1,
+                "max_tokens": 1000,
+                "response_format": {"type": "json_object"},
             }
 
             max_retries = 3
@@ -480,9 +504,7 @@ class AMUInsightsViewSet(viewsets.ViewSet):
                     if response.status_code == 200:
                         result = response.json()
                         try:
-                            ai_response = result["candidates"][0]["content"]["parts"][
-                                0
-                            ]["text"].strip()
+                            ai_response = result["choices"][0]["message"]["content"].strip()
                         except (KeyError, IndexError):
                             parsed_data = {"error": "AI returned empty response"}
                             break
